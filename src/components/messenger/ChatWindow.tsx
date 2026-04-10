@@ -1,0 +1,160 @@
+import { useState, useRef, useEffect } from 'react';
+import { Chat, Message } from '@/data/mockData';
+import Avatar from './Avatar';
+import TypingIndicator from './TypingIndicator';
+import Icon from '@/components/ui/icon';
+
+interface ChatWindowProps {
+  chat: Chat;
+}
+
+const ChatWindow = ({ chat }: ChatWindowProps) => {
+  const [messages, setMessages] = useState<Message[]>(chat.messages);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(chat.typing ?? false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setMessages(chat.messages);
+    setIsTyping(chat.typing ?? false);
+  }, [chat]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    const newMsg: Message = {
+      id: `m${Date.now()}`,
+      text: input.trim(),
+      time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      isOut: true,
+      status: 'sent',
+    };
+    setMessages((prev) => [...prev, newMsg]);
+    setInput('');
+
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    setIsTyping(true);
+    typingTimerRef.current = setTimeout(() => {
+      setIsTyping(false);
+      const reply: Message = {
+        id: `m${Date.now() + 1}`,
+        text: 'Понял, спасибо! 👍',
+        time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+        isOut: false,
+      };
+      setMessages((prev) => [...prev, reply]);
+    }, 2500);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="glass border-b border-white/5 px-4 py-3 flex items-center gap-3 flex-shrink-0">
+        <Avatar label={chat.avatar} color={chat.color} size="md" online={chat.online} ring />
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-white/90 flex items-center gap-2">
+            {chat.name}
+            {chat.isGroup && <Icon name="Users" size={14} className="text-white/40" />}
+          </div>
+          <div className="text-xs">
+            {isTyping ? (
+              <span style={{ color: 'var(--neon-purple)' }} className="animate-pulse">
+                печатает...
+              </span>
+            ) : chat.online ? (
+              <span style={{ color: 'var(--neon-green)' }}>в сети</span>
+            ) : (
+              <span className="text-white/30">не в сети</span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button className="p-2 rounded-xl hover:bg-white/5 transition-colors text-white/40 hover:text-white/70">
+            <Icon name="Phone" size={18} />
+          </button>
+          <button className="p-2 rounded-xl hover:bg-white/5 transition-colors text-white/40 hover:text-white/70">
+            <Icon name="Video" size={18} />
+          </button>
+          <button className="p-2 rounded-xl hover:bg-white/5 transition-colors text-white/40 hover:text-white/70">
+            <Icon name="MoreVertical" size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`flex items-end gap-2 animate-msg ${msg.isOut ? 'flex-row-reverse' : 'flex-row'}`}
+          >
+            {!msg.isOut && (
+              <Avatar label={chat.avatar} color={chat.color} size="sm" />
+            )}
+            <div
+              className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
+                msg.isOut
+                  ? 'msg-out rounded-br-sm text-white'
+                  : 'msg-in rounded-bl-sm text-white/90'
+              }`}
+            >
+              <p className="text-sm leading-relaxed">{msg.text}</p>
+              <div className={`flex items-center gap-1 mt-1 ${msg.isOut ? 'justify-end' : 'justify-start'}`}>
+                <span className="text-xs opacity-50">{msg.time}</span>
+                {msg.isOut && msg.status === 'read' && (
+                  <Icon name="CheckCheck" size={12} style={{ color: 'var(--neon-cyan)' }} />
+                )}
+                {msg.isOut && msg.status === 'sent' && (
+                  <Icon name="Check" size={12} className="opacity-50" />
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {isTyping && <TypingIndicator />}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div className="glass border-t border-white/5 p-3 flex items-end gap-3 flex-shrink-0">
+        <button className="p-2 rounded-xl hover:bg-white/5 transition-colors text-white/40 hover:text-white/70 flex-shrink-0">
+          <Icon name="Paperclip" size={20} />
+        </button>
+        <div className="flex-1 relative">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Написать сообщение..."
+            rows={1}
+            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-2.5 text-sm text-white/90 placeholder-white/25 resize-none focus:outline-none focus:border-purple-500/50 transition-colors"
+            style={{ maxHeight: '120px' }}
+          />
+        </div>
+        <button
+          onClick={handleSend}
+          disabled={!input.trim()}
+          className="p-2.5 rounded-2xl flex-shrink-0 transition-all duration-200 disabled:opacity-30"
+          style={{
+            background: input.trim() ? 'linear-gradient(135deg, #7c3aed, #a855f7)' : 'rgba(255,255,255,0.05)',
+            boxShadow: input.trim() ? '0 4px 20px rgba(168,85,247,0.4)' : 'none',
+          }}
+        >
+          <Icon name="Send" size={18} className="text-white" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ChatWindow;
