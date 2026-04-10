@@ -9,6 +9,41 @@ interface ChatWindowProps {
   chat: Chat;
 }
 
+const playReceiveSound = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+
+    // Мягкий низкий «pop» — нота поднимается вверх
+    const osc1 = ctx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(380, ctx.currentTime);
+    osc1.frequency.exponentialRampToValueAtTime(760, ctx.currentTime + 0.1);
+    const g1 = ctx.createGain();
+    g1.gain.setValueAtTime(0.13, ctx.currentTime);
+    g1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    osc1.connect(g1);
+    g1.connect(ctx.destination);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.18);
+
+    // Лёгкий второй тон чуть позже
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(520, ctx.currentTime + 0.06);
+    osc2.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + 0.16);
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0.07, ctx.currentTime + 0.06);
+    g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    osc2.connect(g2);
+    g2.connect(ctx.destination);
+    osc2.start(ctx.currentTime + 0.06);
+    osc2.stop(ctx.currentTime + 0.2);
+
+    setTimeout(() => ctx.close(), 400);
+  } catch { /* молча игнорируем */ }
+};
+
 const playSendSound = () => {
   try {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -85,6 +120,7 @@ const ChatWindow = ({ chat }: ChatWindowProps) => {
         isOut: false,
       };
       setMessages((prev) => [...prev, reply]);
+      playReceiveSound();
     }, 2500);
   };
 
