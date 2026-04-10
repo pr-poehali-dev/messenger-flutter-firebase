@@ -96,10 +96,17 @@ const ChatWindow = ({ chat }: ChatWindowProps) => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  const updateStatus = (id: string, status: Message['status']) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, status } : m))
+    );
+  };
+
   const handleSend = () => {
     if (!input.trim()) return;
+    const id = `m${Date.now()}`;
     const newMsg: Message = {
-      id: `m${Date.now()}`,
+      id,
       text: input.trim(),
       time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
       isOut: true,
@@ -108,6 +115,10 @@ const ChatWindow = ({ chat }: ChatWindowProps) => {
     setMessages((prev) => [...prev, newMsg]);
     setInput('');
     playSendSound();
+
+    // sent → delivered → read
+    setTimeout(() => updateStatus(id, 'delivered'), 600);
+    setTimeout(() => updateStatus(id, 'read'), 1400);
 
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     setIsTyping(true);
@@ -208,11 +219,18 @@ const ChatWindow = ({ chat }: ChatWindowProps) => {
               <p className="text-sm leading-relaxed">{msg.text}</p>
               <div className={`flex items-center gap-1 mt-1 ${msg.isOut ? 'justify-end' : 'justify-start'}`}>
                 <span className="text-xs opacity-50">{msg.time}</span>
-                {msg.isOut && msg.status === 'read' && (
-                  <Icon name="CheckCheck" size={12} style={{ color: 'var(--neon-cyan)' }} />
-                )}
-                {msg.isOut && msg.status === 'sent' && (
-                  <Icon name="Check" size={12} className="opacity-50" />
+                {msg.isOut && (
+                  <span className="transition-all duration-300" style={{ display: 'inline-flex' }}>
+                    {msg.status === 'sent' && (
+                      <Icon name="Check" size={12} className="opacity-40 animate-scale-in" />
+                    )}
+                    {msg.status === 'delivered' && (
+                      <Icon name="CheckCheck" size={12} className="opacity-60 animate-scale-in" style={{ color: 'rgba(255,255,255,0.6)' }} />
+                    )}
+                    {msg.status === 'read' && (
+                      <Icon name="CheckCheck" size={12} className="animate-scale-in" style={{ color: 'var(--neon-cyan)' }} />
+                    )}
+                  </span>
                 )}
               </div>
             </div>
