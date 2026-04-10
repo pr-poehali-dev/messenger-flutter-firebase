@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Chat, Message } from '@/data/mockData';
 import Avatar from './Avatar';
 import TypingIndicator from './TypingIndicator';
+import CallScreen from './CallScreen';
 import Icon from '@/components/ui/icon';
 
 interface ChatWindowProps {
@@ -12,12 +13,14 @@ const ChatWindow = ({ chat }: ChatWindowProps) => {
   const [messages, setMessages] = useState<Message[]>(chat.messages);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(chat.typing ?? false);
+  const [activeCall, setActiveCall] = useState<{ isVideo: boolean } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setMessages(chat.messages);
     setIsTyping(chat.typing ?? false);
+    setActiveCall(null);
   }, [chat]);
 
   useEffect(() => {
@@ -50,8 +53,23 @@ const ChatWindow = ({ chat }: ChatWindowProps) => {
     }, 2500);
   };
 
+  const startCall = (isVideo: boolean) => {
+    setActiveCall({ isVideo });
+  };
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
+      {/* Active call overlay */}
+      {activeCall && (
+        <CallScreen
+          name={chat.name}
+          avatar={chat.avatar}
+          color={chat.color}
+          isVideo={activeCall.isVideo}
+          onEnd={() => setActiveCall(null)}
+        />
+      )}
+
       {/* Header */}
       <div className="glass border-b border-white/5 px-4 py-3 flex items-center gap-3 flex-shrink-0">
         <Avatar label={chat.avatar} color={chat.color} size="md" online={chat.online} ring />
@@ -73,11 +91,25 @@ const ChatWindow = ({ chat }: ChatWindowProps) => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-xl hover:bg-white/5 transition-colors text-white/40 hover:text-white/70">
+          <button
+            onClick={() => startCall(false)}
+            className="p-2 rounded-xl hover:bg-white/5 transition-all text-white/40 hover:text-[var(--neon-green)] relative group"
+            title="Голосовой звонок"
+          >
             <Icon name="Phone" size={18} />
+            <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--bg-elevated)] text-white/70 text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10">
+              Звонок
+            </span>
           </button>
-          <button className="p-2 rounded-xl hover:bg-white/5 transition-colors text-white/40 hover:text-white/70">
+          <button
+            onClick={() => startCall(true)}
+            className="p-2 rounded-xl hover:bg-white/5 transition-all text-white/40 hover:text-[var(--neon-cyan)] relative group"
+            title="Видеозвонок"
+          >
             <Icon name="Video" size={18} />
+            <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[var(--bg-elevated)] text-white/70 text-xs px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-white/10">
+              Видео
+            </span>
           </button>
           <button className="p-2 rounded-xl hover:bg-white/5 transition-colors text-white/40 hover:text-white/70">
             <Icon name="MoreVertical" size={18} />

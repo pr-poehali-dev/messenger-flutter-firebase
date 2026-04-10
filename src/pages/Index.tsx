@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { chats, Chat } from '@/data/mockData';
 import ChatList from '@/components/messenger/ChatList';
 import ChatWindow from '@/components/messenger/ChatWindow';
@@ -7,6 +7,7 @@ import GroupsPanel from '@/components/messenger/GroupsPanel';
 import SearchPanel from '@/components/messenger/SearchPanel';
 import ProfilePanel from '@/components/messenger/ProfilePanel';
 import SettingsPanel from '@/components/messenger/SettingsPanel';
+import IncomingCall from '@/components/messenger/IncomingCall';
 import Icon from '@/components/ui/icon';
 
 type Tab = 'chats' | 'contacts' | 'groups' | 'search' | 'profile' | 'settings';
@@ -20,11 +21,38 @@ const tabs: { id: Tab; icon: string; label: string }[] = [
   { id: 'settings', icon: 'Settings', label: 'Настройки' },
 ];
 
+// Имитация входящих звонков
+const incomingCallScenarios = [
+  { chatIndex: 2, isVideo: false, delay: 8000 },
+  { chatIndex: 5, isVideo: true, delay: 35000 },
+];
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState<Tab>('chats');
   const [selectedChat, setSelectedChat] = useState<Chat | null>(chats[0]);
+  const [incomingCall, setIncomingCall] = useState<{
+    name: string; avatar: string; color: string; isVideo: boolean;
+  } | null>(null);
 
   const totalUnread = chats.reduce((sum, c) => sum + c.unread, 0);
+
+  useEffect(() => {
+    const timers = incomingCallScenarios.map(({ chatIndex, isVideo, delay }) =>
+      setTimeout(() => {
+        const caller = chats[chatIndex];
+        setIncomingCall({ name: caller.name, avatar: caller.avatar, color: caller.color, isVideo });
+      }, delay)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  const handleAcceptCall = () => {
+    setIncomingCall(null);
+  };
+
+  const handleDeclineCall = () => {
+    setIncomingCall(null);
+  };
 
   return (
     <div className="h-screen flex overflow-hidden mesh-bg">
@@ -131,6 +159,18 @@ const Index = () => {
           </div>
         )}
       </div>
+
+      {/* Incoming call popup */}
+      {incomingCall && (
+        <IncomingCall
+          name={incomingCall.name}
+          avatar={incomingCall.avatar}
+          color={incomingCall.color}
+          isVideo={incomingCall.isVideo}
+          onAccept={handleAcceptCall}
+          onDecline={handleDeclineCall}
+        />
+      )}
     </div>
   );
 };
