@@ -27,11 +27,11 @@ const IncomingCall = ({ name, avatar, color, isVideo, onAccept, onDecline }: Inc
       }}
     >
       <div
-        className="w-80 rounded-3xl p-5 flex flex-col gap-4 relative overflow-hidden"
+        className="w-80 rounded-3xl p-5 flex flex-col gap-4 relative overflow-hidden animate-call-glow"
         style={{
           background: 'linear-gradient(135deg, #1a0d2e, #0d1a2e)',
-          border: `1px solid ${color}44`,
-          boxShadow: `0 20px 60px rgba(0,0,0,0.6), 0 0 40px ${color}22`,
+          border: `1px solid ${color}55`,
+          ['--call-color' as string]: `${color}44`,
         }}
       >
         {/* Blur bg blob */}
@@ -53,16 +53,31 @@ const IncomingCall = ({ name, avatar, color, isVideo, onAccept, onDecline }: Inc
 
         {/* Caller info */}
         <div className="flex items-center gap-3">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold flex-shrink-0 relative"
-            style={{
-              background: `linear-gradient(135deg, ${color}, ${color}88)`,
-              boxShadow: `0 0 20px ${color}44`,
-            }}
-          >
-            {avatar}
+          <div className="relative flex-shrink-0 w-14 h-14">
+            {/* Ripple rings */}
             <span
-              className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center"
+              className="call-ripple absolute inset-0 rounded-2xl pointer-events-none"
+              style={{ background: `${color}33` }}
+            />
+            <span
+              className="call-ripple-2 absolute inset-0 rounded-2xl pointer-events-none"
+              style={{ background: `${color}22` }}
+            />
+            <span
+              className="call-ripple-3 absolute inset-0 rounded-2xl pointer-events-none"
+              style={{ background: `${color}11` }}
+            />
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold relative z-10"
+              style={{
+                background: `linear-gradient(135deg, ${color}, ${color}88)`,
+                boxShadow: `0 0 20px ${color}55`,
+              }}
+            >
+              {avatar}
+            </div>
+            <span
+              className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center z-20 animate-phone-ring"
               style={{ background: isVideo ? 'var(--neon-cyan)' : 'var(--neon-green)' }}
             >
               <Icon name={isVideo ? 'Video' : 'Phone'} size={10} className="text-white" />
