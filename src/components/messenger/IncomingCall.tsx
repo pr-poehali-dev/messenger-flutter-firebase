@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Icon from '@/components/ui/icon';
 
 interface IncomingCallProps {
@@ -10,13 +10,95 @@ interface IncomingCallProps {
   onDecline: () => void;
 }
 
+const playRingTone = (ctx: AudioContext) => {
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0.18, ctx.currentTime);
+  master.connect(ctx.destination);
+
+  // Двухтональный сигнал как у телефона (425 Гц + 480 Гц)
+  const freqs = [425, 480];
+  const oscs = freqs.map((freq) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start();
+    return osc;
+  });
+
+  // Ритм: 1 сек звук — 2 сек пауза
+  const pattern = (startAt: number) => {
+    master.gain.setValueAtTime(0.18, startAt);
+    master.gain.setValueAtTime(0, startAt + 1.0);
+    master.gain.setValueAtTime(0.18, startAt + 3.0);
+    master.gain.setValueAtTime(0, startAt + 4.0);
+    master.gain.setValueAtTime(0.18, startAt + 6.0);
+    master.gain.setValueAtTime(0, startAt + 7.0);
+  };
+
+  pattern(ctx.currentTime);
+  pattern(ctx.currentTime + 7.0);
+  pattern(ctx.currentTime + 14.0);
+
+  return () => {
+    oscs.forEach((o) => { try { o.stop(); } catch { /* already stopped */ } });
+    master.disconnect();
+  };
+};
+
 const IncomingCall = ({ name, avatar, color, isVideo, onAccept, onDecline }: IncomingCallProps) => {
   const [visible, setVisible] = useState(false);
+  const ctxRef = useRef<AudioContext | null>(null);
+  const stopRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), 50);
     return () => clearTimeout(t);
   }, []);
+
+  useEffect(() => {
+    // Запускаем звук сразу при появлении (браузер разрешает после user gesture, иначе авто-resume)
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+    ctxRef.current = ctx;
+
+    const resume = () => {
+      if (ctx.state === 'suspended') ctx.resume();
+    };
+    document.addEventListener('click', resume, { once: true });
+
+    if (ctx.state === 'running') {
+      stopRef.current = playRingTone(ctx);
+    } else {
+      ctx.addEventListener('statechange', () => {
+        if (ctx.state === 'running' && !stopRef.current) {
+          stopRef.current = playRingTone(ctx);
+        }
+      });
+      ctx.resume();
+    }
+
+    return () => {
+      document.removeEventListener('click', resume);
+      stopRef.current?.();
+      ctx.close();
+    };
+  }, []);
+
+  const handleAccept = () => {
+    stopRef.current?.();
+    ctxRef.current?.close();
+    onAccept();
+  };
+
+  const handleDecline = () => {
+    stopRef.current?.();
+    ctxRef.current?.close();
+    onDecline();
+  };
 
   return (
     <div
@@ -54,7 +136,6 @@ const IncomingCall = ({ name, avatar, color, isVideo, onAccept, onDecline }: Inc
         {/* Caller info */}
         <div className="flex items-center gap-3">
           <div className="relative flex-shrink-0 w-14 h-14">
-            {/* Ripple rings */}
             <span
               className="call-ripple absolute inset-0 rounded-2xl pointer-events-none"
               style={{ background: `${color}33` }}
@@ -94,7 +175,7 @@ const IncomingCall = ({ name, avatar, color, isVideo, onAccept, onDecline }: Inc
         {/* Actions */}
         <div className="flex items-center gap-3">
           <button
-            onClick={onDecline}
+            onClick={handleDecline}
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm transition-all hover:scale-105 active:scale-95"
             style={{
               background: 'rgba(239,68,68,0.2)',
@@ -106,7 +187,7 @@ const IncomingCall = ({ name, avatar, color, isVideo, onAccept, onDecline }: Inc
             Отклонить
           </button>
           <button
-            onClick={onAccept}
+            onClick={handleAccept}
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm text-white transition-all hover:scale-105 active:scale-95"
             style={{
               background: 'linear-gradient(135deg, #16a34a, #22c55e)',
