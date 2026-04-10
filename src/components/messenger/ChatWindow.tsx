@@ -9,6 +9,40 @@ interface ChatWindowProps {
   chat: Chat;
 }
 
+const playSendSound = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.12, ctx.currentTime);
+    master.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    master.connect(ctx.destination);
+
+    // Короткий высокий щелчок + мягкий «whoosh»
+    const osc1 = ctx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(1200, ctx.currentTime);
+    osc1.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.08);
+    osc1.connect(master);
+    osc1.start(ctx.currentTime);
+    osc1.stop(ctx.currentTime + 0.12);
+
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(900, ctx.currentTime + 0.02);
+    osc2.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.1);
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0.07, ctx.currentTime + 0.02);
+    g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+    osc2.connect(g2);
+    g2.connect(ctx.destination);
+    osc2.start(ctx.currentTime + 0.02);
+    osc2.stop(ctx.currentTime + 0.12);
+
+    setTimeout(() => ctx.close(), 300);
+  } catch { /* браузер заблокировал — молча игнорируем */ }
+};
+
 const ChatWindow = ({ chat }: ChatWindowProps) => {
   const [messages, setMessages] = useState<Message[]>(chat.messages);
   const [input, setInput] = useState('');
@@ -38,6 +72,7 @@ const ChatWindow = ({ chat }: ChatWindowProps) => {
     };
     setMessages((prev) => [...prev, newMsg]);
     setInput('');
+    playSendSound();
 
     if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     setIsTyping(true);
